@@ -1,5 +1,5 @@
 ---
-title: "What is pileup and how to model it correctly?"
+title: "Adding pileup corrections in the HTT analysis example"
 teaching: 10
 exercises: 20
 questions:
