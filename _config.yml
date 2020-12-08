@@ -11,11 +11,11 @@
 carpentry: "cms"
 
 # Overall title for pages.
-title: "Lesson Title"
+title: "Pileup modeling and corrections"
 
 # Life cycle stage of the lesson
 # possible values: "pre-alpha", "alpha", "beta", "stable"
-life_cycle: "pre-alpha"
+life_cycle: "stable"
 
 #------------------------------------------------------------
 # Generic settings (should not need to change).
