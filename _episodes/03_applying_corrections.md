@@ -20,7 +20,7 @@ In order to add the pileup corrections, we need to use simulated events that con
  */
 const std::string newSamplesBasePath = "root://eospublic.cern.ch//eos/opendata/cms/upload/od-workshop/ws1.0/";
 ~~~
-{: .c++}
+{: .cpp}
 
 To use the correct path we will add a boolean variable to the main function that tells which path to use and how to process the dataset. The addition will be presented later.
 
@@ -29,7 +29,7 @@ Next we add this boolean variable to the function DeclareVaribles (line 214). Th
 ~~~
 auto DeclareVariables(T &df, bool isData)
 ~~~
-{: .c++}
+{: .cpp}
 
 Because the data events do not contain pileup-variables, we will add the following code (to line 257) to make sure pileup-variables are declared only for simulated events.
 
@@ -80,7 +80,7 @@ if(!isData){ // for simulated events add also pileup-variables
                 .Define("pileup_true","Pileup_true_number");
     }
 ~~~
-{: .c++}
+{: .cpp}
 
 From line 376 are the final variables. Those should be changed to 'finalVariables' for simulated events and 'finalVariablesData' for data events.
 
@@ -106,7 +106,7 @@ const std::vector<std::string> finalVariablesData = {
     "gen_match", "run", "weight",
 };
 ~~~
-{: .c++}
+{: .cpp}
 
 Now we create the boolean variable in the main function and choose the path to correct files. Add the following code to line 416.
 
@@ -123,14 +123,14 @@ if(dataRun){
 
 ROOT::RDataFrame df("Events", path + sample + ".root");
 ~~~
-{: .c++}
+{: .cpp}
 
 Give 'dataRun' as a parameter to DeclareVaribles (line 434).
 
 ~~~
 auto df7 = DeclareVariables(df6, dataRun);
 ~~~
-{: .c++}
+{: .cpp}
 
 Last, let's choose the correct variables (add to line 442):
 
@@ -141,7 +141,7 @@ if(dataRun){
   dfFinal.Snapshot("Events", sample + "Skim.root", finalVariables);
 }
 ~~~
-{: .c++}
+{: .cpp}
 
 ## histograms.py
 
