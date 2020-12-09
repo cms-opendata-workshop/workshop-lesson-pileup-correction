@@ -10,80 +10,145 @@ keypoints:
 - "TODO"
 ---
 
-**ALL TEXT BELOW IS JUST COPY-PASTE FROM ABCD LESSON; TO BE UPDATED**
+## Skimming
 
-## Skim.cxx
+In order to add the pileup corrections, we need to use simulated events that contain the variable 'pileup'. For this we will need to add some code to [skim.cxx](https://github.com/cms-opendata-analyses/HiggsTauTauNanoAODOutreachAnalysis/blob/master/skim.cxx). Start by adding the following code to line 29. This will be used to get the simulated events while the original path in the analysis will be used for the data events.
 
-By **signal region**, we mean the region in the phase space defined by our **signal selection**, i.e. the trigger and all offline selections that we use in the analysis.
-
-In addition to signal region, often we need one or several **control regions**. These are usually obtained by changing some of the cuts w.r.t. our signal selection, to define regions that are in some aspects **similar to signal region**, but they are **signal-depleted**, i.e. the signal-to-background ratio is very tiny or even zero. Typically we want to define control regions that are **enriched in a particular background process**, and have **sufficient statistics**, i.e. there is enough events that enter the control region to give us sufficient statistical precision.
-
-Sometimes control regions are also referred to as **sidebands**, especially in cases where the signal shows up as a resonance peak, so the signal region is defined by selecting some mass window, and the control regions are defined as sidebands on the left and right side of the mass window.
-
-## Signal and control regions in the ABCD method
-
-In the ABCD method, region **D** is our signal region, whereas regions **A**, **B** and **C** are all control regions.
-
-In the ABCD method, the  **region C is used to estimate the shape of the background process**, as a function of one or several variables.
-Therefore we should aim to select a region where we can safely assume the background process to take similar shape as in the signal region D.
-
-Next let us see what this means in the context of the Higgs to tau tau analysis.
-
-## Definition of control region C in the Higgs to tau tau analysis example
-
-In the [histograms.py script](https://github.com/cms-opendata-analyses/HiggsTauTauNanoAODOutreachAnalysis/blob/master/histograms.py#L120com) you can find the following lines:
 ~~~
-        # Book histograms for the signal region
-        df1 = df.Filter("q_1*q_2<0", "Require opposite charge for signal region")
-        df1 = filterGenMatch(df1, label)
-        hists = {}
-        for variable in variables:
-            hists[variable] = bookHistogram(df1, variable, ranges[variable])
-        report1 = df1.Report()
-
-        # Book histograms for the control region used to estimate the QCD contribution
-        df2 = df.Filter("q_1*q_2>0", "Control region for QCD estimation")
-        df2 = filterGenMatch(df2, label)
-        hists_cr = {}
-        for variable in variables:
-            hists_cr[variable] = bookHistogram(df2, variable, ranges[variable])
-        report2 = df2.Report()
+/*
+ * Path to new version of simulations
+ */
+const std::string newSamplesBasePath = "root://eospublic.cern.ch//eos/opendata/cms/upload/od-workshop/ws1.0/";
 ~~~
-{: .python}
+{: .c++}
 
-As you can see, here **define the signal regions by requiring that hadronic tau and the muon have opposite signs*** (as they should if they are produced in a decay of a neutral Higgs boson), i.e. `q_1*q_2<0`, while the **control region is defined by requiring them to have the same sign**, i.e. `q_1*q_2>0`.
+To use the correct path we will add a boolean variable to the main function that tells which path to use and how to process the dataset. The addition will be presented later.
 
-> ## Challenge
-> Task: run the Higgs to tau tau analysis up to the step where you produce the histograms (python histograms.py) according to [the instructions on this page](https://github.com/cms-opendata-analyses/HiggsTauTauNanoAODOutreachAnalysis).
->
-> Then inspect the histograms with ROOT TBrowser. Look at the histograms for the largest signal process (ggH), and compare the histograms showing the signal region (no postfix in the histogram name) and those showing the control region (`_cr` postfix in the histogram name). Which region has more signal?
->
-> The scroll through the selection of histograms to see all the different processes contained in this root file.
-{: .challenge}
+Next we add this boolean variable to the function DeclareVaribles (line 214). The function should take 'isData' as a parameter.
 
-## Estimating the QCD background in control region C
-
-Often our control **region C is not completely pure**, so that it would contain only events produced by the background process we want to estimate. Instead, our data sample is a mixture of different processes. This is also the case in the Higgs to tau tau analysis example.
-
-In order to estimate the yield and the shape of the QCD multijet background, we need to **estimate all other processes that enter the control region, and subtract their contribution from the data**. Luckily, we know how to estimate all the other relevant background processes -- from simulation!
-
-The subtraction of simulated processes (which are normalized to the integrated luminosity and the cross section), is done in the potting sxcript [plot.py](https://github.com/cms-opendata-analyses/HiggsTauTauNanoAODOutreachAnalysis/blob/master/plot.py#L155), where you can find the following lines:
 ~~~
-    # Data-driven QCD estimation
-    QCD = getHistogram(tfile, "dataRunB", variable, "_cr")
-    QCDRunC = getHistogram(tfile, "dataRunC", variable, "_cr")
-    QCD.Add(QCDRunC)
-    for name in ["W1J", "W2J", "W3J", "TT", "ZLL", "ZTT"]:
-        ss = getHistogram(tfile, name, variable, "_cr")
-        QCD.Add(ss, -1.0)
-    for i in range(1, QCD.GetNbinsX() + 1):
-        if QCD.GetBinContent(i) < 0.0:
-            QCD.SetBinContent(i, 0.0)
+auto DeclareVariables(T &df, bool isData)
 ~~~
-{: .python}
+{: .c++}
 
-The point here is that this way, with the ABCD method, we can estimate the process that is difficult to simulate (QCD) by using data, as well as simulated samples for the background processes for which the simulations are relatively reliable (here: W+Jets, ttbar, Drell-Yan).
+Because the data events do not contain pileup-variables, we will add the following code (to line 257) to make sure pileup-variables are declared only for simulated events.
 
-Soon we get to run this script and inspect the resulting QCD background estimate.
+~~~
+if(!isData){ // for simulated events add also pileup-variables
+      return df.Define("pt_1", "Muon_pt[idx_1]")
+                .Define("eta_1", "Muon_eta[idx_1]")
+                .Define("phi_1", "Muon_phi[idx_1]")
+                .Define("m_1", "Muon_mass[idx_1]")
+                .Define("iso_1", "Muon_pfRelIso03_all[idx_1]")
+                .Define("q_1", "Muon_charge[idx_1]")
+                .Define("pt_2", "Tau_pt[idx_2]")
+                .Define("eta_2", "Tau_eta[idx_2]")
+                .Define("phi_2", "Tau_phi[idx_2]")
+                .Define("m_2", "Tau_mass[idx_2]")
+                .Define("iso_2", "Tau_relIso_all[idx_2]")
+                .Define("q_2", "Tau_charge[idx_2]")
+                .Define("dm_2", "Tau_decayMode[idx_2]")
+                .Define("pt_met", "MET_pt")
+                .Define("phi_met", "MET_phi")
+                .Define("p4_1", add_p4, {"pt_1", "eta_1", "phi_1", "m_1"})
+                .Define("p4_2", add_p4, {"pt_2", "eta_2", "phi_2", "m_2"})
+                .Define("p4", "p4_1 + p4_2")
+                .Define("mt_1", compute_mt, {"pt_1", "phi_1", "pt_met", "phi_met"})
+                .Define("mt_2", compute_mt, {"pt_2", "phi_2", "pt_met", "phi_met"})
+                .Define("m_vis", "float(p4.M())")
+                .Define("pt_vis", "float(p4.Pt())")
+                .Define("npv", "PV_npvs")
+                .Define("goodJets", "Jet_puId == true && abs(Jet_eta) < 4.7 && Jet_pt > 30")
+                .Define("njets", "Sum(goodJets)")
+                .Define("jpt_1", get_first, {"Jet_pt", "goodJets"})
+                .Define("jeta_1", get_first, {"Jet_eta", "goodJets"})
+                .Define("jphi_1", get_first, {"Jet_phi", "goodJets"})
+                .Define("jm_1", get_first, {"Jet_mass", "goodJets"})
+                .Define("jbtag_1", get_first, {"Jet_btag", "goodJets"})
+                .Define("jpt_2", get_second, {"Jet_pt", "goodJets"})
+                .Define("jeta_2", get_second, {"Jet_eta", "goodJets"})
+                .Define("jphi_2", get_second, {"Jet_phi", "goodJets"})
+                .Define("jm_2", get_second, {"Jet_mass", "goodJets"})
+                .Define("jbtag_2", get_second, {"Jet_btag", "goodJets"})
+                .Define("jp4_1", add_p4, {"jpt_1", "jeta_1", "jphi_1", "jm_1"})
+                .Define("jp4_2", add_p4, {"jpt_2", "jeta_2", "jphi_2", "jm_2"})
+                .Define("jp4", "jp4_1 + jp4_2")
+                .Define("mjj", compute_mjj, {"jp4", "goodJets"})
+                .Define("ptjj", compute_ptjj, {"jp4", "goodJets"})
+                .Define("jdeta", compute_jdeta, {"jeta_1", "jeta_2", "goodJets"})
+                .Define("pileup_tot", "Pileup_total_number") // new pileup-variables
+                .Define("pileup_true","Pileup_true_number");
+    }
+~~~
+{: .c++}
+
+From line 376 are the final variables. Those should be changed to 'finalVariables' for simulated events and 'finalVariablesData' for data events.
+
+~~~
+const std::vector<std::string> finalVariables = {
+    "njets", "npv",
+    "pt_1", "eta_1", "phi_1", "m_1", "iso_1", "q_1", "mt_1",
+    "pt_2", "eta_2", "phi_2", "m_2", "iso_2", "q_2", "mt_2", "dm_2",
+    "jpt_1", "jeta_1", "jphi_1", "jm_1", "jbtag_1",
+    "jpt_2", "jeta_2", "jphi_2", "jm_2", "jbtag_2",
+    "pt_met", "phi_met", "m_vis", "pt_vis", "mjj", "ptjj", "jdeta",
+    "gen_match", "run", "weight",
+    "pileup_tot","pileup_true"
+};
+
+const std::vector<std::string> finalVariablesData = {
+    "njets", "npv",
+    "pt_1", "eta_1", "phi_1", "m_1", "iso_1", "q_1", "mt_1",
+    "pt_2", "eta_2", "phi_2", "m_2", "iso_2", "q_2", "mt_2", "dm_2",
+    "jpt_1", "jeta_1", "jphi_1", "jm_1", "jbtag_1",
+    "jpt_2", "jeta_2", "jphi_2", "jm_2", "jbtag_2",
+    "pt_met", "phi_met", "m_vis", "pt_vis", "mjj", "ptjj", "jdeta",
+    "gen_match", "run", "weight",
+};
+~~~
+{: .c++}
+
+Now we create the boolean variable in the main function and choose the path to correct files. Add the following code to line 416.
+
+~~~
+bool dataRun = sample.find("Run") != std::string::npos;
+
+std::string path;
+
+if(dataRun){
+  path = samplesBasePath;
+} else {
+  path = newSamplesBasePath;
+}
+
+ROOT::RDataFrame df("Events", path + sample + ".root");
+~~~
+{: .c++}
+
+Give 'dataRun' as a parameter to DeclareVaribles (line 434).
+
+~~~
+auto df7 = DeclareVariables(df6, dataRun);
+~~~
+{: .c++}
+
+Last, let's choose the correct variables (add to line 442):
+
+~~~
+if(dataRun){
+  dfFinal.Snapshot("Events", sample + "Skim.root", finalVariablesData);
+} else {
+  dfFinal.Snapshot("Events", sample + "Skim.root", finalVariables);
+}
+~~~
+{: .c++}
+
+## histograms.py
+
+Let's create some histograms.
+
+## plot.py
+
+
 
 {% include links.md %}
