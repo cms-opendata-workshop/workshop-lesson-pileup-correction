@@ -14,12 +14,12 @@ keypoints:
 
 In order to add the pileup corrections, we need to use simulated events that contain the variable 'pileup'. For this we will need to add some code to [skim.cxx](https://github.com/cms-opendata-analyses/HiggsTauTauNanoAODOutreachAnalysis/blob/master/skim.cxx). Start by adding the following code to line 29. This will be used to get the simulated events while the original path in the analysis will be used for the data events.
 
-~~~
+```cpp
 /*
  * Path to new version of simulations
  */
 const std::string newSamplesBasePath = "root://eospublic.cern.ch//eos/opendata/cms/upload/od-workshop/ws1.0/";
-~~~
+```
 {: .cpp}
 
 To use the correct path we will add a boolean variable to the main function that tells which path to use and how to process the dataset. The addition will be presented later.
