@@ -27,7 +27,6 @@ Next we add this boolean variable to the function DeclareVaribles (line 214). Th
 
 ```cpp
 auto DeclareVariables(T &df, bool isData)
-~~~
 ```
 
 Because the data events do not contain pileup-variables, we will add the following code (to line 257) to make sure pileup-variables are declared only for simulated events.
@@ -137,11 +136,99 @@ if(dataRun){
 }
 ```
 
-## histograms.py
+## Histograms
 
-Let's create some histograms.
+Let's create some histograms. The next addition will be made to [histograms.py](https://github.com/cms-opendata-analyses/HiggsTauTauNanoAODOutreachAnalysis/blob/master/histograms.py). First, add the pileup-variables to the list of ranges (to lines 54 and 55).
 
-## plot.py
+```py
+"pileup_tot":(50, 0, 50),
+"pileup_true": (50, 0, 50),
+```
+Then we are going to add a function for getting the corrections from the file. Make sure you have the correct path to the file in the function. We will also add a function that finds the correct pileup correction value for each event. This code should be added to line 81.
+
+```py
+# Getting pileup corrections using gInterpreter
+ROOT.gInterpreter.Declare("""
+TFile *f = new TFile("pileupCorrection.root");
+TH1F *puCorrectionFactors = (TH1F*)f->Get("puCorrectionFactors");
+""")
+
+# Function for finding correct pileup correction
+ROOT.gInterpreter.Declare("""
+float findPuCorrection(float pileup_true) {
+    if(pileup_true < 5){
+        return 1.0;
+    } else if(pileup_true > 50){
+        return 0;
+    }
+
+    auto puWeigth = puCorrectionFactors->GetBinContent(pileup_true);
+    return puWeigth;
+}
+""")
+```
+
+After adding the pileup correction we also need to scale back the histograms. The following code will create dataframes marked 'old' that will be used for scaling. We will add the same 'if' used here a few more times that prevents using the pilup-variables for data events.
+
+```py
+# Used for scaling new histograms with pileup corrections
+df_old = df.Filter("q_1*q_2<0", "Require opposited charge for signal region")
+df_old = filterGenMatch(df_old, label)
+hists_old = {}
+for variable in variables:
+  if "Run" in name and "pileup" in variable:
+    continue
+  hists_old[variable] = bookHistogram(df_old, variable, ranges[variable])
+report_old = df_old.Report()
+```
+
+Next we will change the for-loop at line 154 to use the added correction. Again, we are skipping pileup-variables for data.
+
+```py
+for variable in variables:
+  if "Run" in name:
+    if "pileup" in variable:
+      continue
+    # Data events
+    hists[variable] = bookHistogram(df1, variable, ranges[variable])
+  else:
+    # Simulated events
+    hists[variable] = df1.Define("total_weight", "findPuCorrection(pileup_true)*weight").Histo1D(ROOT.ROOT.RDF.TH1DModel(variable, variable, ranges[variable][0], ranges[variable][1], ranges[variable][2]), variable, "total_weight")
+```        
+Now the actual scaling is done. Add to line 166.
+
+```py
+for variable in variables:
+  if "Run" in name and "pileup" in variable:
+    continue
+  n_old = hists_old[variable].Integral()
+  n_new = hists[variable].Integral()
+  hists[variable].Scale(n_old/n_new)
+```
+Lastly, make sure to add the 'if' a few more times:
+
+```py
+# Book histograms for the control region used to estimate the QCD contribution
+df2 = df.Filter("q_1*q_2>0", "Control region for QCD estimation")
+df2 = filterGenMatch(df2, label)
+hists_cr = {}
+for variable in variables:
+  if "Run" in name and "pileup" in variable:
+    continue
+  hists_cr[variable] = bookHistogram(df2, variable, ranges[variable])
+report2 = df2.Report()
+
+# Write histograms to output file
+for variable in variables:
+  if "Run" in name and "pileup" in variable:
+    continue
+  writeHistogram(hists[variable], "{}_{}".format(label, variable))
+for variable in variables:
+  if "Run" in name and "pileup" in variable:
+    continue
+  writeHistogram(hists_cr[variable], "{}_{}_cr".format(label, variable))
+```
+## Plotting
 
 
 
