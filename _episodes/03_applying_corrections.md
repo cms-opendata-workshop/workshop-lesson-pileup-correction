@@ -20,20 +20,19 @@ In order to add the pileup corrections, we need to use simulated events that con
  */
 const std::string newSamplesBasePath = "root://eospublic.cern.ch//eos/opendata/cms/upload/od-workshop/ws1.0/";
 ```
-{: .cpp}
 
 To use the correct path we will add a boolean variable to the main function that tells which path to use and how to process the dataset. The addition will be presented later.
 
 Next we add this boolean variable to the function DeclareVaribles (line 214). The function should take 'isData' as a parameter.
 
-~~~
+```cpp
 auto DeclareVariables(T &df, bool isData)
 ~~~
-{: .cpp}
+```
 
 Because the data events do not contain pileup-variables, we will add the following code (to line 257) to make sure pileup-variables are declared only for simulated events.
 
-~~~
+```cpp
 if(!isData){ // for simulated events add also pileup-variables
       return df.Define("pt_1", "Muon_pt[idx_1]")
                 .Define("eta_1", "Muon_eta[idx_1]")
@@ -79,12 +78,11 @@ if(!isData){ // for simulated events add also pileup-variables
                 .Define("pileup_tot", "Pileup_total_number") // new pileup-variables
                 .Define("pileup_true","Pileup_true_number");
     }
-~~~
-{: .cpp}
+```
 
 From line 376 are the final variables. Those should be changed to 'finalVariables' for simulated events and 'finalVariablesData' for data events.
 
-~~~
+```cpp
 const std::vector<std::string> finalVariables = {
     "njets", "npv",
     "pt_1", "eta_1", "phi_1", "m_1", "iso_1", "q_1", "mt_1",
@@ -105,12 +103,11 @@ const std::vector<std::string> finalVariablesData = {
     "pt_met", "phi_met", "m_vis", "pt_vis", "mjj", "ptjj", "jdeta",
     "gen_match", "run", "weight",
 };
-~~~
-{: .cpp}
+```
 
 Now we create the boolean variable in the main function and choose the path to correct files. Add the following code to line 416.
 
-~~~
+```cpp
 bool dataRun = sample.find("Run") != std::string::npos;
 
 std::string path;
@@ -122,26 +119,23 @@ if(dataRun){
 }
 
 ROOT::RDataFrame df("Events", path + sample + ".root");
-~~~
-{: .cpp}
+```
 
 Give 'dataRun' as a parameter to DeclareVaribles (line 434).
 
-~~~
+```cpp
 auto df7 = DeclareVariables(df6, dataRun);
-~~~
-{: .cpp}
+```
 
 Last, let's choose the correct variables (add to line 442):
 
-~~~
+```cpp
 if(dataRun){
   dfFinal.Snapshot("Events", sample + "Skim.root", finalVariablesData);
 } else {
   dfFinal.Snapshot("Events", sample + "Skim.root", finalVariables);
 }
-~~~
-{: .cpp}
+```
 
 ## histograms.py
 
