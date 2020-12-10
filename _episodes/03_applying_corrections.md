@@ -21,6 +21,7 @@ In order to add the pileup corrections, we need to use simulated events that con
 const std::string newSamplesBasePath = "root://eospublic.cern.ch//eos/opendata/cms/upload/od-workshop/ws1.0/";
 ```
 
+
 To use the correct path we will add a boolean variable to the main function that tells which path to use and how to process the dataset. The addition will be presented later.
 
 Next we add this boolean variable to the function DeclareVaribles (line 214). The function should take 'isData' as a parameter.
@@ -29,10 +30,11 @@ Next we add this boolean variable to the function DeclareVaribles (line 214). Th
 auto DeclareVariables(T &df, bool isData)
 ```
 
-Because the data events do not contain pileup-variables, we will add the following code (to line 257) to make sure pileup-variables are declared only for simulated events.
+
+Because the data events do not contain pileup variables, we will add the following code (to line 257) to make sure pileup variables are declared only for simulated events.
 
 ```cpp
-if(!isData){ // for simulated events add also pileup-variables
+if(!isData){ // for simulated events add also pileup variables
       return df.Define("pt_1", "Muon_pt[idx_1]")
                 .Define("eta_1", "Muon_eta[idx_1]")
                 .Define("phi_1", "Muon_phi[idx_1]")
@@ -74,10 +76,11 @@ if(!isData){ // for simulated events add also pileup-variables
                 .Define("mjj", compute_mjj, {"jp4", "goodJets"})
                 .Define("ptjj", compute_ptjj, {"jp4", "goodJets"})
                 .Define("jdeta", compute_jdeta, {"jeta_1", "jeta_2", "goodJets"})
-                .Define("pileup_tot", "Pileup_total_number") // new pileup-variables
+                .Define("pileup_tot", "Pileup_total_number") // new pileup variables
                 .Define("pileup_true","Pileup_true_number");
     }
 ```
+
 
 From line 376 are the final variables. Those should be changed to 'finalVariables' for simulated events and 'finalVariablesData' for data events.
 
@@ -104,6 +107,7 @@ const std::vector<std::string> finalVariablesData = {
 };
 ```
 
+
 Now we create the boolean variable in the main function and choose the path to correct files. Add the following code to line 416.
 
 ```cpp
@@ -120,11 +124,13 @@ if(dataRun){
 ROOT::RDataFrame df("Events", path + sample + ".root");
 ```
 
+
 Give 'dataRun' as a parameter to DeclareVaribles (line 434).
 
 ```cpp
 auto df7 = DeclareVariables(df6, dataRun);
 ```
+
 
 Last, let's choose the correct variables (add to line 442):
 
@@ -136,14 +142,17 @@ if(dataRun){
 }
 ```
 
+
 ## Histograms
 
-Let's create some histograms. The next addition will be made to [histograms.py](https://github.com/cms-opendata-analyses/HiggsTauTauNanoAODOutreachAnalysis/blob/master/histograms.py). First, add the pileup-variables to the list of ranges (to lines 54 and 55).
+Let's create some histograms. The next addition will be made to [histograms.py](https://github.com/cms-opendata-analyses/HiggsTauTauNanoAODOutreachAnalysis/blob/master/histograms.py). First, add the pileup variables to the list of ranges (to lines 54 and 55).
 
 ```py
 "pileup_tot":(50, 0, 50),
-"pileup_true": (50, 0, 50),
+"pileup_true":(50, 0, 50),
 ```
+
+
 Then we are going to add a function for getting the corrections from the file. Make sure you have the correct path to the file in the function. We will also add a function that finds the correct pileup correction value for each event. This code should be added to line 81.
 
 ```py
@@ -168,6 +177,7 @@ float findPuCorrection(float pileup_true) {
 """)
 ```
 
+
 After adding the pileup correction we also need to scale back the histograms. The following code will create dataframes marked 'old' that will be used for scaling. We will add the same 'if' used here a few more times that prevents using the pilup-variables for data events.
 
 ```py
@@ -182,7 +192,8 @@ for variable in variables:
 report_old = df_old.Report()
 ```
 
-Next we will change the for-loop at line 154 to use the added correction. Again, we are skipping pileup-variables for data.
+
+Next we will change the for-loop at line 154 to use the added correction. Again, we are skipping pileup variables for data.
 
 ```py
 for variable in variables:
@@ -195,6 +206,8 @@ for variable in variables:
     # Simulated events
     hists[variable] = df1.Define("total_weight", "findPuCorrection(pileup_true)*weight").Histo1D(ROOT.ROOT.RDF.TH1DModel(variable, variable, ranges[variable][0], ranges[variable][1], ranges[variable][2]), variable, "total_weight")
 ```        
+
+
 Now the actual scaling is done. Add to line 166.
 
 ```py
@@ -205,6 +218,8 @@ for variable in variables:
   n_new = hists[variable].Integral()
   hists[variable].Scale(n_old/n_new)
 ```
+
+
 Lastly, make sure to add the 'if' a few more times:
 
 ```py
@@ -228,8 +243,130 @@ for variable in variables:
     continue
   writeHistogram(hists_cr[variable], "{}_{}_cr".format(label, variable))
 ```
+
+
 ## Plotting
 
+Finally, let's plot the histograms. For this we need to make changes to [plot.py](https://github.com/cms-opendata-analyses/HiggsTauTauNanoAODOutreachAnalysis/blob/master/plot.py). First, we again add the pileup variables. This time to the labels-list starting that begins from line 12.
 
+```py
+"pileup_true": "Pileup_true_number",
+"pileup_tot": "Pileup_total_number",
+```
+
+
+To the beginning of the main function (to line 82) we once again add a boolean variable to make this easier later on.
+
+```py
+isPileup = "pileup" in variable
+```
+
+
+Next we need to make sure pileup variables aren't used for data and QCD by putting the code that starts from line 152 under an if statement.
+
+```py
+if(not isPileup):
+  # Data
+  data = getHistogram(tfile, "dataRunB", variable)
+  dataRunC = getHistogram(tfile, "dataRunC", variable)
+  data.Add(dataRunC)
+
+  # Data-driven QCD estimation
+  QCD = getHistogram(tfile, "dataRunB", variable, "_cr")
+  QCDRunC = getHistogram(tfile, "dataRunC", variable, "_cr")
+  QCD.Add(QCDRunC)
+  for name in ["W1J", "W2J", "W3J", "TT", "ZLL", "ZTT"]:
+    ss = getHistogram(tfile, name, variable, "_cr")
+    QCD.Add(ss, -1.0)
+  for i in range(1, QCD.GetNbinsX() + 1):
+    if QCD.GetBinContent(i) < 0.0:
+      QCD.SetBinContent(i, 0.0)
+  QCDScaleFactor = 0.80
+  QCD.Scale(QCDScaleFactor)
+
+  data.SetMarkerStyle(20)
+  data.SetLineColor(ROOT.kBlack)
+
+# Draw histograms
+ggH.SetLineColor(colors["ggH"])
+qqH.SetLineColor(colors["qqH"])
+```
+
+
+Because separating ZTT and ZLL events does not work correctly for the new simulated events, we combine the events. Add the following lines right after the code above.
+
+```py
+# Combine ZTT and ZLL
+ZTT.Add(ZLL)
+```
+
+
+Next, we make a bit more changes to code starting from line 189. We remove the 'ZLL' variable, use some more if statements and add titles for the pileup variables.
+
+```py
+if(isPileup):
+  for x, l in [(TT, "TT"), (ZTT, "ZTT"), (W, "W")]: # remove ZLL and QCD
+      x.SetLineWidth(0)
+      x.SetFillColor(colors[l])
+else:
+    for x, l in [(QCD, "QCD"), (TT, "TT"), (ZTT, "ZTT"), (W, "W")]: # remove ZLL
+        x.SetLineWidth(0)
+        x.SetFillColor(colors[l])
+
+stack = ROOT.THStack("", "")
+if(isPileup):
+  for x in [TT, W, ZTT]: # remove ZLL and QCD
+      stack.Add(x)
+else:
+  for x in [QCD, TT, W, ZTT]: # remove ZLL
+      stack.Add(x)
+
+c = ROOT.TCanvas("", "", 600, 600)
+stack.Draw("hist")
+if(variable == "pileup_true"):
+  stack.GetXaxis().SetTitle("Pileup_true_number") # add titles for pileup variables
+  stack.SetMaximum(7000) # to prevent legend from going on top of distribution
+  stack.SetMinimum(1.0)
+elif(variable == "pileup_tot"):
+  stack.GetXaxis().SetTitle("Pileup_total_number")
+  stack.SetMaximum(7000)
+  stack.SetMinimum(1.0)
+else:
+  name = data.GetTitle() # titles for other variables
+  if name in labels:
+    title = labels[name]
+  else:
+    title = name
+  stack.GetXaxis().SetTitle(title)
+stack.GetYaxis().SetTitle("N_{Events}")
+if(not isPileup):
+  stack.SetMaximum(max(stack.GetMaximum(), data.GetMaximum()) * 1.4)
+  stack.SetMinimum(1.0)
+
+ggH.Draw("HIST SAME")
+qqH.Draw("HIST SAME")
+
+if(not isPileup):
+  data.Draw("E1P SAME")
+```
+
+
+Same changes for legends as well. The ZTT and ZLL events are combined to the ZTT histogram, but the name for the events is still Z &#8594; *ll*.
+
+```py
+# Add legend
+legend = ROOT.TLegend(0.4, 0.73, 0.90, 0.88)
+legend.SetNColumns(2)
+legend.AddEntry(ZTT, "Z#rightarrowll", "f")
+legend.AddEntry(W, "W+jets", "f")
+legend.AddEntry(TT, "t#bar{t}", "f")
+legend.AddEntry(ggH, "gg#rightarrowH (x{:.0f})".format(scale_ggH), "l")
+legend.AddEntry(qqH, "qq#rightarrowH (x{:.0f})".format(scale_qqH), "l")
+if(not isPileup):
+    legend.AddEntry(data, "Data", "lep")
+    legend.AddEntry(QCD, "QCD multijet", "f")
+legend.SetBorderSize(0)
+legend.Draw()
+```
 
 {% include links.md %}
