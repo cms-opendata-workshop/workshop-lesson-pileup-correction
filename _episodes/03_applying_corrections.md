@@ -24,14 +24,14 @@ const std::string newSamplesBasePath = "root://eospublic.cern.ch//eos/opendata/c
 
 To use the correct path we will add a boolean variable to the main function that tells which path to use and how to process the dataset. The addition will be presented later.
 
-Next we add this boolean variable to the function DeclareVaribles (line 214). The function should take 'isData' as a parameter.
+Next we add the boolean variable to the function DeclareVaribles (line 214). The function should take 'isData' as a parameter.
 
 ```cpp
 auto DeclareVariables(T &df, bool isData)
 ```
 
 
-Because the data events do not contain pileup variables, we will add the following code (to line 257) to make sure pileup variables are declared only for simulated events.
+Because the data events do not contain pileup variables, we will add the following code to line 257 to make sure pileup variables are declared only for simulated events.
 
 ```cpp
 if(!isData){ // for simulated events add also pileup variables
@@ -82,7 +82,7 @@ if(!isData){ // for simulated events add also pileup variables
 ```
 
 
-From line 376 are the final variables. Those should be changed to 'finalVariables' for simulated events and 'finalVariablesData' for data events.
+The final variables are listed after line 376. Those should be changed to 'finalVariables' for simulated events and 'finalVariablesData' for data events.
 
 ```cpp
 const std::vector<std::string> finalVariables = {
@@ -108,7 +108,7 @@ const std::vector<std::string> finalVariablesData = {
 ```
 
 
-Now we create the boolean variable in the main function and choose the path to correct files. Add the following code to line 416.
+Next, we create the boolean variable in the main function and choose the path to correct files. Add the following code to line 416 and delete the old line for creating the path (ROOT::RDataFrame...).
 
 ```cpp
 bool dataRun = sample.find("Run") != std::string::npos;
@@ -132,7 +132,7 @@ auto df7 = DeclareVariables(df6, dataRun);
 ```
 
 
-Last, let's choose the correct variables (add to line 442):
+Lastly, let's choose the correct variables (add to line 442):
 
 ```cpp
 if(dataRun){
@@ -145,7 +145,7 @@ if(dataRun){
 
 ## Histograms
 
-Let's create some histograms. The next addition will be made to [histograms.py](https://github.com/cms-opendata-analyses/HiggsTauTauNanoAODOutreachAnalysis/blob/master/histograms.py). First, add the pileup variables to the list of ranges (to lines 54 and 55).
+Next, we are going to create some histograms with [histograms.py](https://github.com/cms-opendata-analyses/HiggsTauTauNanoAODOutreachAnalysis/blob/master/histograms.py). First, add the pileup variables to the end of the list of ranges (to lines 54 and 55).
 
 ```py
 "pileup_tot":(50, 0, 50),
@@ -153,7 +153,7 @@ Let's create some histograms. The next addition will be made to [histograms.py](
 ```
 
 
-Then we are going to add a function for getting the corrections from the file. Make sure you have the correct path to the file in the function. We will also add a function that finds the correct pileup correction value for each event. This code should be added to line 81.
+Then we are going to add a function for getting the pileup corrections from the file. Make sure you have the correct path to the file in the function. We will also add a function that finds the correct pileup correction value for each event. Add the code to line 81.
 
 ```py
 # Getting pileup corrections using gInterpreter
@@ -178,7 +178,7 @@ float findPuCorrection(float pileup_true) {
 ```
 
 
-After adding the pileup correction we also need to scale back the histograms. The following code will create dataframes marked 'old' that will be used for scaling. We will add the same 'if' used here a few more times that prevents using the pilup-variables for data events.
+After adding the pileup corrections we need to scale back the histograms. The following code will create dataframes marked 'old' that will be used for scaling. We will add the 'if' statement used here a few more times later on. It prevents using the pilup variables for data events.
 
 ```py
 # Used for scaling new histograms with pileup corrections
@@ -193,7 +193,7 @@ report_old = df_old.Report()
 ```
 
 
-Next we will change the for-loop at line 154 to use the added correction. Again, we are skipping pileup variables for data.
+Next, we will change the for-loop at line 154 to use the added correction. Again, we are skipping pileup variables for data.
 
 ```py
 for variable in variables:
@@ -208,7 +208,7 @@ for variable in variables:
 ```        
 
 
-Now the actual scaling is done. Add to line 166.
+Add the scaling to line 166.
 
 ```py
 for variable in variables:
@@ -220,7 +220,7 @@ for variable in variables:
 ```
 
 
-Lastly, make sure to add the 'if' a few more times:
+Lastly, we add the 'if' statement a few more times:
 
 ```py
 # Book histograms for the control region used to estimate the QCD contribution
@@ -247,7 +247,7 @@ for variable in variables:
 
 ## Plotting
 
-Finally, let's plot the histograms. For this we need to make changes to [plot.py](https://github.com/cms-opendata-analyses/HiggsTauTauNanoAODOutreachAnalysis/blob/master/plot.py). First, we again add the pileup variables. This time to the labels-list starting that begins from line 12.
+Finally, let's plot the histograms. For this we need to make changes to [plot.py](https://github.com/cms-opendata-analyses/HiggsTauTauNanoAODOutreachAnalysis/blob/master/plot.py). Again, we start by adding the pileup variables. This time to the 'labels'-list that begins from line 12.
 
 ```py
 "pileup_true": "Pileup_true_number",
@@ -255,14 +255,14 @@ Finally, let's plot the histograms. For this we need to make changes to [plot.py
 ```
 
 
-To the beginning of the main function (to line 82) we once again add a boolean variable to make this easier later on.
+A boolean variable will make things easier with plots as well, so let's create one at the beginning of the main function (line 82).
 
 ```py
 isPileup = "pileup" in variable
 ```
 
 
-Next we need to make sure pileup variables aren't used for data and QCD by putting the code that starts from line 152 under an if statement.
+We need to make sure pileup variables aren't used for data and QCD. To do this, put the code that starts from line 152 under an if statement as follows:
 
 ```py
 if(not isPileup):
@@ -293,7 +293,7 @@ qqH.SetLineColor(colors["qqH"])
 ```
 
 
-Because separating ZTT and ZLL events does not work correctly for the new simulated events, we combine the events. Add the following lines right after the code above.
+Because separating ZTT and ZLL events does not work correctly for the new simulated events, we combine the events to one variable titled Z &#8594; *ll*. Add the following lines right after the code above.
 
 ```py
 # Combine ZTT and ZLL
@@ -301,7 +301,7 @@ ZTT.Add(ZLL)
 ```
 
 
-Next, we make a bit more changes to code starting from line 189. We remove the 'ZLL' variable, use some more if statements and add titles for the pileup variables.
+Next, we need to remove the 'ZLL' variable, use some more if statements and add titles for the pileup variables. Change the code that begins from line 189 to following:
 
 ```py
 if(isPileup):
@@ -351,13 +351,13 @@ if(not isPileup):
 ```
 
 
-Same changes for legends as well. The ZTT and ZLL events are combined to the ZTT histogram, but the name for the events is still Z &#8594; *ll*.
+Same changes are needed for legends as well.
 
 ```py
 # Add legend
 legend = ROOT.TLegend(0.4, 0.73, 0.90, 0.88)
 legend.SetNColumns(2)
-legend.AddEntry(ZTT, "Z#rightarrowll", "f")
+legend.AddEntry(ZTT, "Z#rightarrowll", "f") # new title for ZTT and ZLL combined
 legend.AddEntry(W, "W+jets", "f")
 legend.AddEntry(TT, "t#bar{t}", "f")
 legend.AddEntry(ggH, "gg#rightarrowH (x{:.0f})".format(scale_ggH), "l")
